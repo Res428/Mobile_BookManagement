@@ -1,0 +1,95 @@
+const express = require("express");
+const sql = require("mssql");
+const cors = require("cors"); // Import cors
+
+const app = express();
+const port = 3000;
+
+// Cấu hình CORS
+app.use(
+  cors({
+    origin: ["http://localhost:3000"], // Thay đổi thành nguồn của bạn
+  })
+);
+
+app.use(express.json()); // Đảm bảo bạn đã thêm middleware để phân tích yêu cầu JSON
+
+// Cấu hình kết nối đến SQL Server
+const config = {
+  server: "sql.bsite.net\\MSSQL2016",
+  database: "deadlinengapdau_BookManagement",
+  user: "deadlinengapdau_BookManagement",
+  password: "123456789",
+  options: {
+    encrypt: true,
+    trustServerCertificate: true,
+  },
+};
+
+// API đăng nhập
+// app.post('/api/login', async (req, res) => {
+//     const { username, password } = req.body;
+
+//     try {
+//         const pool = await sql.connect(config);
+//         const result = await pool.request()
+//             .input('Username', sql.NVarChar, username)
+//             .input('PlainPassword', sql.NVarChar, password)
+//             .execute('UserLogin'); // Gọi thủ tục UserLogin
+
+//         if (result.recordset.length > 0) {
+//             const user = result.recordset[0];
+//             const userInfo = await pool.request()
+//                 .input('Username', sql.NVarChar, username)
+//                 .query('SELECT * FROM Users WHERE Username = @Username');
+
+//             res.status(200).json({
+//                 message: 'Login successful',
+//                 user: { ...user, ...userInfo.recordset[0] }
+//             });
+//         } else {
+//             res.status(401).json({ message: 'Invalid credentials' });
+//         }
+//     } catch (err) {
+//         console.error('Login failed: ', err);
+//         res.status(500).send('Error during login');
+//     }
+// });
+
+// API đăng nhập
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const pool = await sql.connect(config);
+    const result = await pool
+      .request()
+      .input("Username", sql.NVarChar, username)
+      .input("PlainPassword", sql.NVarChar, password)
+      .execute("UserLogin"); // Gọi thủ tục UserLogin
+
+    if (result.recordset.length > 0) {
+      const user = result.recordset[0];
+      const userInfo = await pool
+        .request()
+        .input("Username", sql.NVarChar, username)
+        .query("SELECT * FROM Users WHERE Username = @Username");
+
+      // Lấy vai trò từ thông tin người dùng
+      const role = userInfo.recordset[0]?.Role;
+
+      // Lấy userid từ thông tin người dùng
+      const userID = userInfo.recordset[0]?.UserID;
+
+      res.status(200).json({
+        message: "Login successful",
+        user: { ...user, ...userInfo.recordset[0], role, userID }, // Thêm vai trò vào thông tin người dùng
+      });
+    } else {
+      res.status(401).json({ message: "Invalid credentials" });
+    }
+  } catch (err) {
+    console.error("Login failed: ", err);
+    res.status(500).send("Error during login");
+  }
+});
